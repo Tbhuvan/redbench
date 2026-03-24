@@ -60,11 +60,13 @@ print(f"Recall: {results.recall:.1%}, Precision: {results.precision:.1%}")
 
 Tools evaluated on RedBench:
 
-| Tool | Recall | Precision | F1 |
-|------|--------|-----------|-----|
-| ActivGuard (activation probe) | **100%** | **100%** | **1.00** |
-| Bandit (SAST) | 0% | — | 0.00 |
-| Semgrep (SAST) | 0% | — | 0.00 |
+| Tool | Recall | False Positives | AUC | Notes |
+|------|--------|-----------------|-----|-------|
+| ActivGuard (activation probe) | **100%** | **0%** | **0.835** | Static benchmark only |
+| Bandit (SAST) | 0% | 0% | — | Pattern-matching, no semantic understanding |
+| Semgrep (SAST) | 0% | 0% | — | Pattern-matching, no semantic understanding |
+
+*Static benchmark evaluation: probe scores pre-written code samples. Field test on real LLM-generated code shows 48.8% recall — identifying the optimal generation-time intervention point is ongoing research.*
 
 ## Project Structure
 
@@ -82,7 +84,7 @@ redbench/
 
 ## Research Context
 
-Part of the [ActivGuard](https://github.com/Tbhuvan/activguard) research programme on runtime security for AI-assisted software development.
+Part of the [ActivGuard](https://github.com/Tbhuvan/activguard) research programme on runtime security for AI-assisted software development. See also: [AgentWarden](https://github.com/Tbhuvan/agentwarden), [AgentAudit](https://github.com/Tbhuvan/agentaudit).
 
 ## License
 
