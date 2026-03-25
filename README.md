@@ -58,15 +58,15 @@ print(f"Recall: {results.recall:.1%}, Precision: {results.precision:.1%}")
 
 ## Evaluation Results
 
-Tools evaluated on RedBench:
+Tools evaluated on RedBench (static benchmark — complete code fragments):
 
 | Tool | Recall | False Positives | AUC | Notes |
 |------|--------|-----------------|-----|-------|
-| ActivGuard (activation probe) | **100%** | **0%** | **0.835** | Static benchmark only |
-| Bandit (SAST) | 0% | 0% | — | Pattern-matching, no semantic understanding |
-| Semgrep (SAST) | 0% | 0% | — | Pattern-matching, no semantic understanding |
+| ActivGuard (activation probe) | **100%†** | **0%†** | **0.835** | In-sample evaluation (training data) |
+| Bandit (SAST) | 41.9% (83/198) | 27.3% FPR | — | Detects syntactic patterns in complete code only |
+| Semgrep (SAST) | 0% | 0% | — | No rules match AI-generated vulnerability patterns |
 
-*Static benchmark evaluation: probe scores pre-written code samples. Field test on real LLM-generated code shows 48.8% recall — identifying the optimal generation-time intervention point is ongoing research.*
+†*In-sample: same 198 pairs used for probe training. Held-out metric: AUC 0.835 ± 0.055 (5-fold CV). On live streaming generation (field test, 44 prompts): ActivGuard 58.3% recall; Bandit 0%, Semgrep 0%.*
 
 ## Project Structure
 
