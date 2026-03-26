@@ -15,6 +15,8 @@
 
 RedBench is a curated benchmark dataset for evaluating the detection accuracy of LLM code security tools. It provides balanced vulnerable/safe code pairs across 13 CWE classes, enabling rigorous precision/recall measurement with ground-truth labels.
 
+The **evaluation benchmark** (Bandit/Semgrep/ActivGuard comparison) uses the 8 core CWE classes (174 pairs). The **full dataset** spans 13 CWE classes (198 pairs).
+
 Existing benchmarks for code vulnerability detection (e.g., Big-Vul, Devign) focus on historical CVEs in human-written code. RedBench targets a different distribution: **vulnerabilities characteristic of AI-generated code** — the patterns that LLMs produce when given underspecified security prompts.
 
 ## Dataset
