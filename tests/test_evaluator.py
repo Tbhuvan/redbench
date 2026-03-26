@@ -162,7 +162,7 @@ class TestEvaluatorEvaluate:
     def test_invalid_vuln_class_raises(self, two_sample_dataset: Path) -> None:
         ev = BenchmarkEvaluator(dataset_dir=str(two_sample_dataset))
         with pytest.raises(ValueError, match="Unknown vulnerability class"):
-            ev.evaluate(lambda c: {"label": "safe"}, vuln_classes=["xss"])
+            ev.evaluate(lambda c: {"label": "safe"}, vuln_classes=["not_a_real_class"])
 
     def test_invalid_vuln_classes_type(self, two_sample_dataset: Path) -> None:
         ev = BenchmarkEvaluator(dataset_dir=str(two_sample_dataset))
@@ -378,5 +378,6 @@ class TestRealDatasetEvaluation:
     def test_evaluate_on_all_classes(self) -> None:
         ev = BenchmarkEvaluator()
         results = ev.evaluate(lambda c: {"label": "vulnerable"})
-        assert results["n_samples"] == 50
+        # 5 original classes × 10 samples + 12 new classes × 20 samples = 290
+        assert results["n_samples"] == 290
         assert results["overall"]["recall"] == 1.0  # catches all vulnerables

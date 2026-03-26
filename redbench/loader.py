@@ -9,6 +9,7 @@ and CWE.
 from __future__ import annotations
 
 import json
+import re
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,6 +20,7 @@ from typing import Any, Iterator
 # Schema definition
 # ---------------------------------------------------------------------------
 
+# attack_scenario is intentionally excluded — it is optional in v3 files.
 REQUIRED_FIELDS: frozenset[str] = frozenset(
     {
         "id",
@@ -29,8 +31,12 @@ REQUIRED_FIELDS: frozenset[str] = frozenset(
         "code",
         "description",
         "fix",
-        "attack_scenario",
     }
+)
+
+# Fields that are allowed as extras (not treated as unknown)
+OPTIONAL_KNOWN_FIELDS: frozenset[str] = frozenset(
+    {"attack_scenario", "vuln_class", "source"}
 )
 
 VALID_LABELS: frozenset[str] = frozenset({"vulnerable", "safe"})
@@ -43,6 +49,24 @@ VULN_CLASSES: tuple[str, ...] = (
     "ssrf",
     "auth_bypass",
     "path_traversal",
+    "command_injection",
+    "xss",
+    "deserialization",
+    "weak_crypto",
+    "cleartext_secrets",
+    "tls_validation",
+    "unsafe_yaml",
+    "mass_assignment",
+    "redos",
+    "race_condition",
+    "open_redirect",
+    "xxe",
+)
+
+# Regex to strip markdown code fences such as ```python\n...\n``` or ```\n...\n```
+_CODE_FENCE_RE: re.Pattern[str] = re.compile(
+    r"^```[^\n]*\n(.*?)(?:```\s*)?$",
+    re.DOTALL,
 )
 
 
@@ -65,7 +89,7 @@ class BenchmarkSample:
         code: The code snippet to be analysed.
         description: Explanation of why the code is vulnerable.
         fix: The corrected code snippet.
-        attack_scenario: Concrete exploitation scenario.
+        attack_scenario: Concrete exploitation scenario (empty string if absent).
         vuln_class: Derived from the containing dataset directory.
         extra: Additional fields not in the core schema.
     """
@@ -106,6 +130,37 @@ class BenchmarkSample:
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _clean_code(code: str) -> str:
+    """
+    Strip markdown code fences from a code string.
+
+    Handles patterns like::
+
+        ```python
+        import os
+        ```
+
+    or plain ````` ``` ````` without a language tag. Returns the inner code
+    with any trailing whitespace trimmed.
+
+    Args:
+        code: Raw code string, potentially wrapped in markdown fences.
+
+    Returns:
+        Cleaned code string without fence markers.
+    """
+    stripped = code.strip()
+    match = _CODE_FENCE_RE.match(stripped)
+    if match:
+        return match.group(1).rstrip()
+    return stripped
+
+
+# ---------------------------------------------------------------------------
 # Loader
 # ---------------------------------------------------------------------------
 
@@ -121,14 +176,28 @@ class BenchmarkLoader:
     By default reads from the datasets/ directory adjacent to this package.
     Can be pointed at a custom dataset directory.
 
+    The ``source_files`` parameter controls which JSONL filenames are searched
+    in each class directory (in order).  If the first name does not exist the
+    loader tries the next, allowing transparent fallback from canonical
+    ``samples.jsonl`` to ``samples_generated_v3.jsonl``.
+
     Example:
         >>> loader = BenchmarkLoader()
         >>> all_samples = loader.load_all()
         >>> idor_samples = loader.load_class("idor")
         >>> critical = loader.filter(severity="critical")
+
+        # Load v3 generated data for classes that lack canonical files:
+        >>> loader = BenchmarkLoader(
+        ...     source_files=["samples.jsonl", "samples_generated_v3.jsonl"]
+        ... )
     """
 
-    def __init__(self, dataset_dir: str | None = None) -> None:
+    def __init__(
+        self,
+        dataset_dir: str | None = None,
+        source_files: list[str] | None = None,
+    ) -> None:
         """
         Initialise the loader.
 
@@ -136,6 +205,13 @@ class BenchmarkLoader:
             dataset_dir: Path to the directory containing vuln class
                          subdirectories. Defaults to the datasets/ directory
                          in the repository root (two levels up from this file).
+            source_files: Ordered list of JSONL filenames to try when loading
+                          each class. The first file that exists is used.
+                          Defaults to ``["samples.jsonl"]``.
+
+        Raises:
+            TypeError: If dataset_dir is provided but is not a string.
+            TypeError: If source_files is provided but is not a list of strings.
         """
         if dataset_dir is not None and not isinstance(dataset_dir, str):
             raise TypeError(f"dataset_dir must be str or None, got {type(dataset_dir).__name__}")
@@ -144,6 +220,17 @@ class BenchmarkLoader:
         else:
             # Default: <repo_root>/datasets/
             self.dataset_dir = Path(__file__).resolve().parent.parent / "datasets"
+
+        if source_files is None:
+            self.source_files: list[str] = ["samples.jsonl"]
+        else:
+            if not isinstance(source_files, list) or not all(
+                isinstance(f, str) for f in source_files
+            ):
+                raise TypeError("source_files must be a list of strings or None")
+            if not source_files:
+                raise ValueError("source_files must contain at least one filename")
+            self.source_files = source_files
 
         self._cache: dict[str, list[BenchmarkSample]] = {}
 
@@ -168,8 +255,7 @@ class BenchmarkLoader:
         self._ensure_dataset_dir_exists()
         all_samples: list[BenchmarkSample] = []
         for vuln_class in VULN_CLASSES:
-            class_path = self.dataset_dir / vuln_class / "samples.jsonl"
-            if class_path.exists():
+            if self._resolve_class_path(vuln_class) is not None:
                 all_samples.extend(self.load_class(vuln_class, validate=validate))
         return all_samples
 
@@ -178,8 +264,7 @@ class BenchmarkLoader:
         Load all samples for a specific vulnerability class.
 
         Args:
-            vuln_class: One of "idor", "sqli", "ssrf", "auth_bypass",
-                        "path_traversal".
+            vuln_class: One of the 17 known vulnerability class names.
             validate: Whether to validate each sample's schema.
 
         Returns:
@@ -187,7 +272,7 @@ class BenchmarkLoader:
 
         Raises:
             ValueError: If vuln_class is not recognised.
-            FileNotFoundError: If the samples.jsonl file does not exist.
+            FileNotFoundError: If no source file exists for this class.
             ValidationError: If validate=True and a sample is malformed.
         """
         if vuln_class not in VULN_CLASSES:
@@ -195,19 +280,23 @@ class BenchmarkLoader:
                 f"Unknown vulnerability class {vuln_class!r}. "
                 f"Valid classes: {sorted(VULN_CLASSES)}"
             )
-        if vuln_class in self._cache:
-            return self._cache[vuln_class]
 
-        jsonl_path = self.dataset_dir / vuln_class / "samples.jsonl"
-        if not jsonl_path.exists():
+        # Return cached result if available
+        cache_key = f"{vuln_class}::{':'.join(self.source_files)}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        jsonl_path = self._resolve_class_path(vuln_class)
+        if jsonl_path is None:
+            tried = [str(self.dataset_dir / vuln_class / f) for f in self.source_files]
             raise FileNotFoundError(
-                f"Dataset file not found: {jsonl_path}. "
-                f"Expected samples.jsonl in datasets/{vuln_class}/"
+                f"No dataset file found for class {vuln_class!r}. "
+                f"Tried: {tried}"
             )
 
         samples: list[BenchmarkSample] = []
-        with open(jsonl_path, encoding="utf-8") as f:
-            for lineno, line in enumerate(f, start=1):
+        with open(jsonl_path, encoding="utf-8") as fh:
+            for lineno, line in enumerate(fh, start=1):
                 line = line.strip()
                 if not line:
                     continue
@@ -222,7 +311,7 @@ class BenchmarkLoader:
                 sample = self._deserialise(raw, vuln_class)
                 samples.append(sample)
 
-        self._cache[vuln_class] = samples
+        self._cache[cache_key] = samples
         return samples
 
     def filter(
@@ -263,11 +352,11 @@ class BenchmarkLoader:
         """Iterate over all samples without loading everything into memory."""
         self._ensure_dataset_dir_exists()
         for vuln_class in VULN_CLASSES:
-            jsonl_path = self.dataset_dir / vuln_class / "samples.jsonl"
-            if not jsonl_path.exists():
+            jsonl_path = self._resolve_class_path(vuln_class)
+            if jsonl_path is None:
                 continue
-            with open(jsonl_path, encoding="utf-8") as f:
-                for line in f:
+            with open(jsonl_path, encoding="utf-8") as fh:
+                for line in fh:
                     line = line.strip()
                     if line:
                         raw = json.loads(line)
@@ -308,6 +397,25 @@ class BenchmarkLoader:
     # Private helpers
     # ------------------------------------------------------------------
 
+    def _resolve_class_path(self, vuln_class: str) -> Path | None:
+        """
+        Return the first existing source file path for a class, or None.
+
+        Iterates ``self.source_files`` in order and returns the first Path
+        that exists on disk.
+
+        Args:
+            vuln_class: Name of the vulnerability class directory.
+
+        Returns:
+            Resolved Path if a file exists, else None.
+        """
+        for fname in self.source_files:
+            candidate = self.dataset_dir / vuln_class / fname
+            if candidate.exists():
+                return candidate
+        return None
+
     def _ensure_dataset_dir_exists(self) -> None:
         if not self.dataset_dir.exists():
             raise FileNotFoundError(
@@ -334,7 +442,9 @@ class BenchmarkLoader:
                 f"Invalid severity {raw['severity']!r} in {path}:{lineno}. "
                 f"Must be one of {sorted(VALID_SEVERITIES)}"
             )
-        if not raw.get("code", "").strip():
+        # Clean code before checking emptiness so fenced code is not falsely rejected
+        cleaned = _clean_code(raw.get("code", ""))
+        if not cleaned:
             raise ValidationError(f"Empty code field in {path}:{lineno}")
         if not raw.get("cwe", "").upper().startswith("CWE-"):
             raise ValidationError(
@@ -344,7 +454,7 @@ class BenchmarkLoader:
 
     def _deserialise(self, raw: dict[str, Any], vuln_class: str) -> BenchmarkSample:
         """Convert a raw dict to a BenchmarkSample, placing unknown fields in extra."""
-        known = {f for f in REQUIRED_FIELDS}
+        known = REQUIRED_FIELDS | OPTIONAL_KNOWN_FIELDS | {"vuln_class"}
         extra = {k: v for k, v in raw.items() if k not in known}
         return BenchmarkSample(
             id=raw["id"],
@@ -352,10 +462,10 @@ class BenchmarkLoader:
             severity=raw["severity"],
             label=raw["label"],
             language=raw["language"],
-            code=raw["code"],
+            code=_clean_code(raw["code"]),
             description=raw["description"],
-            fix=raw["fix"],
-            attack_scenario=raw["attack_scenario"],
+            fix=_clean_code(raw.get("fix", "") or ""),
+            attack_scenario=raw.get("attack_scenario", ""),
             vuln_class=vuln_class,
             extra=extra,
         )

@@ -103,7 +103,7 @@ class TestLoadClass:
     def test_invalid_class_raises_value_error(self, temp_dataset: Path) -> None:
         loader = BenchmarkLoader(dataset_dir=str(temp_dataset))
         with pytest.raises(ValueError, match="Unknown vulnerability class"):
-            loader.load_class("xss")
+            loader.load_class("not_a_real_class")
 
     def test_missing_file_raises_file_not_found(self, tmp_path: Path) -> None:
         loader = BenchmarkLoader(dataset_dir=str(tmp_path))
@@ -120,7 +120,8 @@ class TestLoadClass:
         loader = BenchmarkLoader(dataset_dir=str(temp_dataset))
         loader.load_class("idor")
         loader.clear_cache()
-        assert "idor" not in loader._cache
+        # After clearing, no entries should remain
+        assert len(loader._cache) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -301,9 +302,10 @@ class TestRealDataset:
         reason="Real dataset files not present",
     )
     def test_total_sample_count(self, full_dataset: Path) -> None:
+        # 5 original classes × 10 samples + 12 new classes × 20 samples = 290
         loader = BenchmarkLoader(dataset_dir=str(full_dataset))
         all_samples = loader.load_all()
-        assert len(all_samples) == 50  # 10 samples × 5 classes
+        assert len(all_samples) == 290  # 17 classes: 5×10 + 12×20
 
     @pytest.mark.skipif(
         not (Path(__file__).resolve().parent.parent / "datasets").exists(),
@@ -312,6 +314,9 @@ class TestRealDataset:
     def test_stats(self, full_dataset: Path) -> None:
         loader = BenchmarkLoader(dataset_dir=str(full_dataset))
         stats = loader.stats()
-        assert stats["total_samples"] == 50
+        assert stats["total_samples"] == 290
         assert "idor" in stats["by_class"]
         assert stats["by_class"]["idor"] == 10
+        # New classes should be present
+        assert "command_injection" in stats["by_class"]
+        assert stats["by_class"]["command_injection"] == 20

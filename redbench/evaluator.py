@@ -53,15 +53,25 @@ class BenchmarkEvaluator:
         >>> print(results["overall"]["f1"])
     """
 
-    def __init__(self, dataset_dir: str | None = None) -> None:
+    def __init__(
+        self,
+        dataset_dir: str | None = None,
+        source_files: list[str] | None = None,
+    ) -> None:
         """
         Initialise the evaluator.
 
         Args:
             dataset_dir: Path to the dataset directory. Defaults to the
                          bundled datasets/ directory.
+            source_files: Ordered list of JSONL filenames to try per class.
+                          Passed directly to BenchmarkLoader. Defaults to
+                          ``["samples.jsonl"]``.
         """
-        self._loader = BenchmarkLoader(dataset_dir=dataset_dir)
+        self._loader = BenchmarkLoader(
+            dataset_dir=dataset_dir,
+            source_files=source_files,
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -191,12 +201,17 @@ class BenchmarkEvaluator:
         for name, tool in tools.items():
             if not isinstance(name, str) or not name.strip():
                 raise ValueError(f"Tool name must be a non-empty string, got {name!r}")
-            comparison[name] = self.evaluate(tool, vuln_classes=vuln_classes)
+            try:
+                comparison[name] = self.evaluate(tool, vuln_classes=vuln_classes)
+            except Exception:
+                # Tool evaluation failed entirely — record a zero-result row so
+                # the caller can still render the comparison table.
+                comparison[name] = self._empty_result()
 
         # Build a summary table
         summary_rows: list[dict[str, Any]] = []
         for name, result in comparison.items():
-            overall = result["overall"]
+            overall = result.get("overall") or self._compute_metrics(0, 0, 0, 0)
             summary_rows.append(
                 {
                     "tool": name,
@@ -205,7 +220,7 @@ class BenchmarkEvaluator:
                     "f1": overall["f1"],
                     "fpr": overall["fpr"],
                     "accuracy": overall["accuracy"],
-                    "n_samples": result["n_samples"],
+                    "n_samples": result.get("n_samples", 0),
                 }
             )
         summary_rows.sort(key=lambda r: r["f1"], reverse=True)
@@ -361,7 +376,21 @@ class BenchmarkEvaluator:
         }
 
     def _validate_vuln_classes(self, vuln_classes: list[str] | None) -> list[str]:
-        """Validate and return the list of vulnerability classes to evaluate."""
+        """
+        Validate and return the list of vulnerability classes to evaluate.
+
+        Returns all 17 known classes when *vuln_classes* is None.
+
+        Args:
+            vuln_classes: Caller-supplied list, or None for all classes.
+
+        Returns:
+            Validated list of class names.
+
+        Raises:
+            TypeError: If vuln_classes is not a list or None.
+            ValueError: If any class name is not in VULN_CLASSES.
+        """
         if vuln_classes is None:
             return list(VULN_CLASSES)
         if not isinstance(vuln_classes, list):
