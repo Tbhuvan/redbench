@@ -60,13 +60,13 @@ print(f"Recall: {results.recall:.1%}, Precision: {results.precision:.1%}")
 
 Tools evaluated on RedBench (static benchmark — complete code fragments):
 
-| Tool | Recall | False Positives | AUC | Notes |
-|------|--------|-----------------|-----|-------|
-| ActivGuard (activation probe) | **100%†** | **0%†** | **0.835** | In-sample evaluation (training data) |
-| Bandit (SAST) | 41.9% (83/198) | 27.3% FPR | — | Detects syntactic patterns in complete code only |
-| Semgrep (SAST) | 0% | 0% | — | No rules match AI-generated vulnerability patterns |
+| Tool | Recall | Precision | AUC | Notes |
+|------|--------|-----------|-----|-------|
+| ActivGuard (activation probe) | **100%†** | **100%†** | **0.835** | In-sample evaluation (training data) |
+| Bandit (SAST) | 12.1% (21/174) | 52.5% | — | 8-CWE subset; strong only on command injection (75%) |
+| Semgrep (SAST) | 14.4% (25/174) | 51.0% | — | 8-CWE subset; best on XSS (33%), weak on SQLi/SSRF |
 
-†*In-sample: same 198 pairs used for probe training. Held-out metric: AUC 0.835 ± 0.055 (5-fold CV). On live streaming generation (field test, 44 prompts): ActivGuard 58.3% recall; Bandit 0%, Semgrep 0%.*
+†*In-sample: same pairs used for probe training. Held-out metric: AUC 0.835 ± 0.055 (5-fold CV, 198 pairs). On live streaming generation (field test, 44 prompts): ActivGuard 58.3% recall; Bandit 0%, Semgrep 19.4%.*
 
 ## Project Structure
 
