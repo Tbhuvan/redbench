@@ -45,13 +45,13 @@ Each sample contains: `code`, `fix`, `cwe`, `severity`, `description` (the promp
 
 ## Evaluation Results
 
-Tools evaluated on the **8-class static benchmark** (174 pairs, complete code fragments):
+Tools evaluated on the **8-class static benchmark** (198 pairs, complete code fragments):
 
 | Tool | Recall | Precision | F1 | Notes |
 |------|--------|-----------|-----|-------|
 | **ActivGuard** (activation probe) | **100%†** | **100%†** | **1.00** | In-sample; held-out AUC **0.835 ± 0.055** (5-fold CV) |
-| Bandit ≥MEDIUM | 47.7% (83/174) | 60.6% | 0.53 | Strong on SQLi (74%), SSRF (68%), cmd-injection (75%) |
-| Semgrep p/python | 14.4% (25/174) | 51.0% | 0.22 | Taint-flow rules require full app context |
+| Bandit ≥MEDIUM | 41.9% (83/198) | 60.6% | 0.53 | Strong on SQLi, SSRF, cmd-injection |
+| Semgrep p/python | ~14%‡ | 51.0% | 0.22 | Taint-flow rules require full app context |
 
 **On live streaming code** (44 prompts, field test):
 
@@ -61,7 +61,9 @@ Tools evaluated on the **8-class static benchmark** (174 pairs, complete code fr
 | Semgrep | 19.4% (7/36) | Post-hoc scanning of partial fragments |
 | Bandit | 0% | Cannot parse incomplete streaming code |
 
-†*In-sample evaluation — same pairs used for probe training. Bandit threshold: MEDIUM (standard CI/CD setting; HIGH misses B608/SQLi entirely). Semgrep recall is limited by taint-flow rules requiring full application context — isolated snippets break the taint chain.*
+†*In-sample evaluation — same pairs used for probe training. Bandit threshold: MEDIUM (standard CI/CD setting; HIGH misses B608/SQLi entirely).*
+
+‡*Semgrep recall measured in a separate static scan. Taint-flow rules require full application context — isolated snippets break the taint chain, which accounts for near-zero detection in the automated e2e benchmark.*
 
 ## Usage
 
