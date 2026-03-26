@@ -63,8 +63,8 @@ Tools evaluated on RedBench (static benchmark — complete code fragments):
 | Tool | Recall | Precision | AUC | Notes |
 |------|--------|-----------|-----|-------|
 | ActivGuard (activation probe) | **100%†** | **100%†** | **0.835** | In-sample evaluation (training data) |
-| Bandit (SAST) | 12.1% (21/174) | 52.5% | — | 8-CWE subset; strong only on command injection (75%) |
-| Semgrep (SAST) | 14.4% (25/174) | 51.0% | — | 8-CWE subset; best on XSS (33%), weak on SQLi/SSRF |
+| Bandit ≥MEDIUM (SAST) | 47.7% (83/174) | 60.6% | — | Standard CI/CD threshold; strong on SQLi (74%), SSRF (68%), cmd-injection (75%) |
+| Semgrep p/python (SAST) | 14.4% (25/174) | 51.0% | — | Taint-flow rules require full app context; isolated snippets break the taint chain |
 
 †*In-sample: same pairs used for probe training. Held-out metric: AUC 0.835 ± 0.055 (5-fold CV, 198 pairs). On live streaming generation (field test, 44 prompts): ActivGuard 58.3% recall; Bandit 0%, Semgrep 19.4%.*
 
