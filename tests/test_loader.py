@@ -302,10 +302,10 @@ class TestRealDataset:
         reason="Real dataset files not present",
     )
     def test_total_sample_count(self, full_dataset: Path) -> None:
-        # 5 original classes × 10 samples + 12 new classes × 20 samples = 290
+        # 5 original classes x 10 samples + 13 new classes x 20 samples = 310
         loader = BenchmarkLoader(dataset_dir=str(full_dataset))
         all_samples = loader.load_all()
-        assert len(all_samples) == 290  # 17 classes: 5×10 + 12×20
+        assert len(all_samples) == 310  # 18 classes: 5x10 + 13x20
 
     @pytest.mark.skipif(
         not (Path(__file__).resolve().parent.parent / "datasets").exists(),
@@ -314,9 +314,11 @@ class TestRealDataset:
     def test_stats(self, full_dataset: Path) -> None:
         loader = BenchmarkLoader(dataset_dir=str(full_dataset))
         stats = loader.stats()
-        assert stats["total_samples"] == 290
+        assert stats["total_samples"] == 310
         assert "idor" in stats["by_class"]
         assert stats["by_class"]["idor"] == 10
         # New classes should be present
         assert "command_injection" in stats["by_class"]
         assert stats["by_class"]["command_injection"] == 20
+        assert "llm_crypto_code" in stats["by_class"]
+        assert stats["by_class"]["llm_crypto_code"] == 20

@@ -379,7 +379,7 @@ class BenchmarkEvaluator:
         """
         Validate and return the list of vulnerability classes to evaluate.
 
-        Returns all 17 known classes when *vuln_classes* is None.
+        Returns all known classes when *vuln_classes* is None.
 
         Args:
             vuln_classes: Caller-supplied list, or None for all classes.

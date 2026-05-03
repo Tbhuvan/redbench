@@ -44,6 +44,7 @@ NEW_CLASSES: tuple[str, ...] = (
     "xss",
     "deserialization",
     "weak_crypto",
+    "llm_crypto_code",
     "cleartext_secrets",
     "tls_validation",
     "unsafe_yaml",

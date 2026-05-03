@@ -378,6 +378,6 @@ class TestRealDatasetEvaluation:
     def test_evaluate_on_all_classes(self) -> None:
         ev = BenchmarkEvaluator()
         results = ev.evaluate(lambda c: {"label": "vulnerable"})
-        # 5 original classes × 10 samples + 12 new classes × 20 samples = 290
-        assert results["n_samples"] == 290
+        # 5 original classes x 10 samples + 13 new classes x 20 samples = 310
+        assert results["n_samples"] == 310
         assert results["overall"]["recall"] == 1.0  # catches all vulnerables

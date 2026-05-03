@@ -13,7 +13,7 @@
 
 ## Overview
 
-RedBench is a curated benchmark dataset and evaluation harness for measuring the detection accuracy of LLM code security tools. It provides **290 balanced vulnerable/safe code pairs across 17 CWE classes**, enabling rigorous precision/recall/F1 measurement with ground-truth labels and automated tool comparison.
+RedBench is a curated benchmark dataset and evaluation harness for measuring the detection accuracy of LLM code security tools. It provides **310 balanced vulnerable/safe code pairs across 18 CWE classes**, enabling rigorous precision/recall/F1 measurement with ground-truth labels and automated tool comparison.
 
 Existing benchmarks for code vulnerability detection (e.g., Big-Vul, Devign) focus on historical CVEs in human-written code. RedBench targets a different distribution: **vulnerabilities characteristic of AI-generated code** — the patterns LLMs produce when given underspecified security prompts.
 
@@ -36,10 +36,11 @@ Existing benchmarks for code vulnerability detection (e.g., Big-Vul, Devign) foc
 | XXE | CWE-611 | 20 | XML external entity injection |
 | Cleartext Secrets | CWE-312 | 20 | Hardcoded credentials / secrets in source |
 | Weak Crypto | CWE-327 | 20 | MD5/SHA1/DES in security contexts |
+| LLM Crypto Code | CWE-327/321/338/347 | 20 | LLM-generated cryptographic code with unsafe primitives, keys, randomness, or verification |
 | Mass Assignment | CWE-915 | 20 | Unfiltered model attribute assignment |
 | Race Condition | CWE-362 | 20 | TOCTOU / unsynchronised shared state |
 
-**Total: 290 balanced pairs** (vulnerable code + matched safe implementation)
+**Total: 310 balanced pairs** (vulnerable code + matched safe implementation)
 
 Each sample contains: `code`, `fix`, `cwe`, `severity`, `description` (the prompt that produced the vulnerability), and `attack_scenario`.
 
@@ -70,10 +71,10 @@ Tools evaluated on the **8-class static benchmark** (198 pairs, complete code fr
 ```bash
 pip install -e .
 
-# Run stub baseline (always-vulnerable predictor) across all 17 classes
+# Run stub baseline (always-vulnerable predictor) across all 18 classes
 python run_benchmark.py --tool stub
 
-# Run Bandit across all 17 classes
+# Run Bandit across all 18 classes
 python run_benchmark.py --tool bandit --output results/bandit_results.json
 
 # Run Semgrep
@@ -89,7 +90,7 @@ python run_benchmark.py --tool stub --source-files samples.jsonl samples_generat
 ```python
 from redbench import BenchmarkLoader, BenchmarkEvaluator
 
-# Load all 17 classes (290 samples)
+# Load all 18 classes (310 samples)
 loader = BenchmarkLoader()
 samples = loader.load_all()
 
@@ -111,10 +112,10 @@ print(evaluator.generate_latex_table(comparison))
 ```
 redbench/
 ├── redbench/
-│   ├── loader.py        # BenchmarkLoader — schema-validated JSONL loading, all 17 classes
+│   ├── loader.py        # BenchmarkLoader — schema-validated JSONL loading, all 18 classes
 │   ├── evaluator.py     # BenchmarkEvaluator — TP/FP/TN/FN, compare_tools(), LaTeX export
 │   └── reporter.py      # BenchmarkReporter — Markdown + JSON report generation
-├── datasets/            # 17 vulnerability class directories (samples.jsonl per class)
+├── datasets/            # 18 vulnerability class directories (samples.jsonl per class)
 ├── scripts/
 │   └── build_canonical.py  # Promotes generated samples to canonical format
 ├── run_benchmark.py     # CLI entry point

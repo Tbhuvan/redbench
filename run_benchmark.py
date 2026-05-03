@@ -1,7 +1,7 @@
 """
 run_benchmark.py — CLI for running the redbench vulnerability benchmark.
 
-Evaluates a detection tool (bandit, semgrep, or stub) against all 17
+Evaluates a detection tool (bandit, semgrep, or stub) against all 18
 vulnerability classes in the redbench dataset, prints a summary table, and
 saves full results to results/benchmark_results.json.
 

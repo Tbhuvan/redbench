@@ -53,6 +53,7 @@ VULN_CLASSES: tuple[str, ...] = (
     "xss",
     "deserialization",
     "weak_crypto",
+    "llm_crypto_code",
     "cleartext_secrets",
     "tls_validation",
     "unsafe_yaml",
@@ -264,7 +265,7 @@ class BenchmarkLoader:
         Load all samples for a specific vulnerability class.
 
         Args:
-            vuln_class: One of the 17 known vulnerability class names.
+            vuln_class: One of the known vulnerability class names.
             validate: Whether to validate each sample's schema.
 
         Returns:
